@@ -1,42 +1,63 @@
 import logging
+from json.decoder import JSONDecodeError
 
 import httpx
 
+from nbrb.dependencies import get_currency_repo, get_currency_service
+from shared.config import settings
 from shared.database import session_maker
-from shared.models import Currency
-from shared.repositories import CurrencyRepository, CurrencySQLRepository
+from shared.models.currency import Currency
+from shared.services.currency import CurrencyService
 
 logger = logging.getLogger(__name__)
 
 
-async def fetch_currencies(periodicity: int) -> list[Currency]:
+async def fetch_currencies(periodicity: int) -> list[Currency] | None:
     """Получить курсы валют"""
     async with httpx.AsyncClient() as client:
         resp = await client.get(
-            'https://api.nbrb.by/exrates/rates',
+            settings.API_URL,
             params={'periodicity': periodicity}
         )
         if resp.status_code != httpx.codes.OK:
             logger.error(f'Ошибка выполнения запроса к API {resp.status_code}')
             return
-        data = resp.json()
-    return [Currency.from_dict(cur_data) for cur_data in data]
+        try:
+            data = resp.json()
+        except JSONDecodeError:
+            return
+    return [Currency.model_validate(cur_data) for cur_data in data]
 
 
 async def save_curriency(
     currency: Currency,
-    repo: CurrencyRepository
+    service: CurrencyService
 ) -> None:
     """Сохранить полученные данные о курсе валюты"""
-    await repo.upsert(currency)
+    await service.upsert(currency)
 
 
-async def update_currencies(periodicity: int):
+async def update_currencies(
+    periodicity: int,
+    session_maker = session_maker
+) -> None:
     """Получить и обновить данные о курсах валют"""
     logger.info(f'Запуск задачи ({periodicity=})')
     currencies = await fetch_currencies(periodicity)
+    if currencies is None:
+        logger.info(f'Задача завершена c ошибкой ({periodicity=})')
+        return
     async with session_maker() as session:
-        repo = CurrencySQLRepository(session)
+        repo = await get_currency_repo(session)
+        service = await get_currency_service(repo)
         for currency in currencies:
-            await save_curriency(currency, repo)
+            await save_curriency(currency, service)
     logger.info(f'Задача завершена ({periodicity=})')
+
+
+async def add_byn(session_maker = session_maker) -> None:
+    """Добавить белорусский рубль в хранилище"""
+    async with session_maker() as session:
+        repo = await get_currency_repo(session)
+        service = await get_currency_service(repo)
+        await service.add_byn()

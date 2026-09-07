@@ -5,7 +5,8 @@ from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 
-from background_tasks.nbrb_parser import update_currencies
+from background_tasks.nbrb_parser import add_byn, update_currencies
+from nbrb.endpoints import router as main_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -21,9 +22,11 @@ async def lifespan(app: FastAPI):
     task2 = asyncio.create_task(update_currencies(1))
     await task1
     await task2
+    await add_byn()
 
     yield
     scheduler.shutdown()
 
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(main_router)

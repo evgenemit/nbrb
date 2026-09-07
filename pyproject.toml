@@ -5,12 +5,16 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "aiosqlite>=0.22.1",
     "alembic>=1.19.2",
     "apscheduler>=3.11.3",
     "asyncpg>=0.31.0",
     "fastapi[standard]>=0.141.1",
     "httpx>=0.28.1",
     "pydantic-settings>=2.15.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "respx>=0.23.1",
     "ruff>=0.16.6",
     "sqlmodel>=0.0.42",
 ]
