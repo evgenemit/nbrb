@@ -2,10 +2,10 @@ from decimal import ROUND_DOWN, Decimal
 
 from fastapi import HTTPException, status
 
-from shared.exceptions import TradeStatusAlreadySet
-from shared.models.currency import Currency
-from shared.models.trade import Trade, TradeUpdate
-from shared.repositories.trade import TradeRepository
+from features.currency.models import Currency
+from features.trade.exceptions import TradeStatusAlreadySet
+from features.trade.models import Trade, TradeUpdate
+from features.trade.repo import TradeRepository
 
 
 class TradeService:

@@ -7,7 +7,7 @@ from typing import Self
 from pydantic import BaseModel, field_validator, model_validator
 from sqlmodel import Field, Relationship, SQLModel, func
 
-from shared.models.currency import Currency, CurrencyPublic
+from features.currency.models import Currency, CurrencyPublic
 
 
 class TradeStatus(str, Enum):

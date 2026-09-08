@@ -1,4 +1,4 @@
-from shared.models.trade import TradeStatus
+from features.trade.models import TradeStatus
 
 
 class TradeStatusAlreadySet(Exception):

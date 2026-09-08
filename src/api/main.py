@@ -5,8 +5,8 @@ from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 
+from api.endpoints import router as main_router
 from background_tasks.nbrb_parser import add_byn, update_currencies
-from nbrb.endpoints import router as main_router
 
 logging.basicConfig(level=logging.INFO)
 

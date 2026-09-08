@@ -2,7 +2,7 @@ import pytest
 from httpx import Response
 
 from background_tasks.nbrb_parser import fetch_currencies
-from shared.models.currency import Currency
+from features.currency.models import Currency
 
 
 @pytest.mark.asyncio

@@ -7,9 +7,9 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from sqlmodel import SQLModel
 
-from shared.config import settings
-from shared.models.currency import *
-from shared.models.trade import *
+from core.config import settings
+from features.currency.models import *
+from features.trade.models import *
 
 
 # this is the Alembic Config object, which provides

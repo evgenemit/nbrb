@@ -3,11 +3,11 @@ from json.decoder import JSONDecodeError
 
 import httpx
 
-from nbrb.dependencies import get_currency_repo, get_currency_service
-from shared.config import settings
-from shared.database import session_maker
-from shared.models.currency import Currency
-from shared.services.currency import CurrencyService
+from api.dependencies import get_currency_repo, get_currency_service
+from core.config import settings
+from core.database import session_maker
+from features.currency.models import Currency
+from features.currency.service import CurrencyService
 
 logger = logging.getLogger(__name__)
 

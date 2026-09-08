@@ -2,12 +2,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from nbrb.dependencies import get_currency_repo, get_currency_service, get_trade_service
-from shared.models.currency import CurrencyPublic
-from shared.models.trade import TradeCreate, TradePublic, TradePublicFull, TradeUpdate
-from shared.repositories.currency import CurrencyRepository
-from shared.services.currency import CurrencyService
-from shared.services.trade import TradeService
+from api.dependencies import get_currency_repo, get_currency_service, get_trade_service
+from features.currency.models import CurrencyPublic
+from features.currency.repo import CurrencyRepository
+from features.currency.service import CurrencyService
+from features.trade.models import TradeCreate, TradePublic, TradePublicFull, TradeUpdate
+from features.trade.service import TradeService
 
 router = APIRouter()
 

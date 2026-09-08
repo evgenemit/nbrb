@@ -7,10 +7,10 @@ from conftest import CUR1, CUR2
 from httpx import ASGITransport, AsyncClient
 from sqlmodel import delete, select
 
-from nbrb.main import app
-from shared.database import get_session
-from shared.models.currency import CurrencyPublic
-from shared.models.trade import Trade, TradeCreate, TradePublic, TradeStatus
+from api.main import app
+from core.database import get_session
+from features.currency.models import CurrencyPublic
+from features.trade.models import Trade, TradeCreate, TradePublic, TradeStatus
 
 
 @pytest_asyncio.fixture
@@ -20,6 +20,7 @@ async def client(async_session):
         async with async_session() as session:
             try:
                 yield session
+                await session.commit()
             except:
                 await session.rollback()
                 raise

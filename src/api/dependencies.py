@@ -3,11 +3,11 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from shared.database import get_session
-from shared.repositories.currency import CurrencyRepository, CurrencySQLRepository
-from shared.repositories.trade import TradeRepository, TradeSQLRepository
-from shared.services.currency import CurrencyService
-from shared.services.trade import TradeService
+from core.database import get_session
+from features.currency.repo import CurrencyRepository, CurrencySQLRepository
+from features.currency.service import CurrencyService
+from features.trade.repo import TradeRepository, TradeSQLRepository
+from features.trade.service import TradeService
 
 
 async def get_currency_repo(

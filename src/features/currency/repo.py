@@ -4,7 +4,7 @@ from typing import Protocol
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from shared.models.currency import Currency
+from features.currency.models import Currency
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +26,9 @@ class CurrencySQLRepository:
         if not isinstance(currency, Currency):
             return
         if currency.id is not None:
-            stmt = select(Currency).where(Currency.id == currency.id)
-            data = (await self._session.exec(stmt)).one_or_none()
+            # stmt = select(Currency).where(Currency.id == currency.id)
+            # data = (await self._session.exec(stmt)).one_or_none()
+            data = await self._session.get(Currency, currency.id)
             if data and data.rate != currency.rate:
                 data.rate = currency.rate
                 currency = data
@@ -39,7 +40,7 @@ class CurrencySQLRepository:
             f'{currency.rate}'
         )
         self._session.add(currency)
-        await self._session.commit()
+        await self._session.flush()
 
     async def get_all(self) -> list[Currency]:
         """Получить все курсы валют из храналища"""

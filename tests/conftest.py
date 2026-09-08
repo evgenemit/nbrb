@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from nbrb.dependencies import get_trade_repo, get_trade_service
-from shared.models.currency import Currency
+from api.dependencies import get_trade_repo, get_trade_service
+from features.currency.models import Currency
 
 CUR1 = Currency(
     id=1,

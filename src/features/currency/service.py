@@ -1,8 +1,8 @@
 import logging
 from decimal import Decimal
 
-from shared.models.currency import Currency
-from shared.repositories.currency import CurrencyRepository
+from features.currency.models import Currency
+from features.currency.repo import CurrencyRepository
 
 logger = logging.getLogger(__name__)
 

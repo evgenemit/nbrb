@@ -5,8 +5,8 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from shared.exceptions import TradeStatusAlreadySet
-from shared.models.trade import Trade, TradeStatus
+from features.trade.exceptions import TradeStatusAlreadySet
+from features.trade.models import Trade, TradeStatus
 
 
 class TradeRepository(Protocol):
@@ -22,7 +22,7 @@ class TradeSQLRepository:
     async def create(self, trade: Trade) -> Trade:
         """Создать запись обмена валют в хранилище"""
         self._session.add(trade)
-        await self._session.commit()
+        await self._session.flush()
         await self._session.refresh(trade)
         return trade
 
@@ -44,6 +44,6 @@ class TradeSQLRepository:
                 raise TradeStatusAlreadySet(trade.status)
             trade.status = status
             self._session.add(trade)
-            await self._session.commit()
+            await self._session.flush()
             await self._session.refresh(trade)
         return trade
