@@ -1,8 +1,8 @@
-"""Initial
+"""initial
 
-Revision ID: fd4f49cd57f3
+Revision ID: f3a8f4534157
 Revises: 
-Create Date: 2026-09-07 20:44:12.821072
+Create Date: 2026-09-09 11:26:27.369022
 
 """
 import sqlmodel
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'fd4f49cd57f3'
+revision: str = 'f3a8f4534157'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -27,15 +27,15 @@ def upgrade() -> None:
     sa.Column('name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('scale', sa.Integer(), nullable=False),
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('rate', sa.Numeric(precision=6, scale=4), nullable=False),
+    sa.Column('rate', sa.Numeric(precision=12, scale=4), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('trades',
     sa.Column('id', sa.Uuid(), nullable=False),
-    sa.Column('amount_original', sa.Numeric(), nullable=False),
-    sa.Column('amount', sa.Numeric(), nullable=False),
-    sa.Column('rate', sa.Numeric(precision=6, scale=4), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
+    sa.Column('amount_original', sa.Numeric(scale=2), nullable=False),
+    sa.Column('amount', sa.Numeric(scale=2), nullable=False),
+    sa.Column('rate', sa.Numeric(precision=12, scale=4), nullable=False),
+    sa.Column('updated_at', sa.Date(), server_default=sa.text('CURRENT_DATE'), nullable=False),
     sa.Column('status', sa.Enum('APPROVED', 'REJECTED', name='tradestatus'), nullable=True),
     sa.Column('from_cur_id', sa.Integer(), nullable=False),
     sa.Column('to_cur_id', sa.Integer(), nullable=False),

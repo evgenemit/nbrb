@@ -14,8 +14,12 @@ class Currency(CurrencyBase, table=True):
     """Валюта"""
     __tablename__ = 'currencies'
 
-    id: int | None = Field(default=None, primary_key=True, validation_alias='Cur_ID')
-    rate: Decimal = Field(max_digits=6, decimal_places=4, validation_alias='Cur_OfficialRate')
+    id: int | None = Field(
+        default=None, primary_key=True, validation_alias='Cur_ID'
+    )
+    rate: Decimal = Field(
+        max_digits=12, decimal_places=4, validation_alias='Cur_OfficialRate'
+    )
 
 
 class CurrencyPublic(CurrencyBase):

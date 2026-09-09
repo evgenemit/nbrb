@@ -26,8 +26,6 @@ class CurrencySQLRepository:
         if not isinstance(currency, Currency):
             return
         if currency.id is not None:
-            # stmt = select(Currency).where(Currency.id == currency.id)
-            # data = (await self._session.exec(stmt)).one_or_none()
             data = await self._session.get(Currency, currency.id)
             if data and data.rate != currency.rate:
                 data.rate = currency.rate
@@ -53,13 +51,9 @@ class CurrencySQLRepository:
         uid: int | None = None,
         abbreviation: str | None = None,
     ) -> Currency | None:
-        """Возвращает Currency по id из хранилища"""
-        stmt = select(Currency)
+        """Возвращает Currency по id/abbreviation из хранилища"""
         if uid and isinstance(uid, int):
-            stmt = stmt.where(Currency.id == uid)
+            return await self._session.get(Currency, uid)
         elif abbreviation and isinstance(abbreviation, str):
-            stmt = stmt.where(Currency.abbreviation == abbreviation)
-        else:
-            return
-        currency = (await self._session.exec(stmt)).one_or_none()
-        return currency
+            stmt = select(Currency).where(Currency.abbreviation == abbreviation)
+            return (await self._session.exec(stmt)).one_or_none()

@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import ROUND_DOWN, Decimal
 from uuid import UUID
 
@@ -10,7 +11,8 @@ from sqlmodel import delete, select
 from api.main import app
 from core.database import get_session
 from features.currency.models import CurrencyPublic
-from features.trade.models import Trade, TradeCreate, TradePublic, TradeStatus
+from features.trade.models import Trade, TradePublic, TradeStatus
+from features.trade.schemas import Report, ReportParams, TradeCreate
 
 
 @pytest_asyncio.fixture
@@ -151,6 +153,7 @@ async def test_update_trade_status(
     await session.refresh(trade)
     assert trade.status == TradeStatus.APPROVED
     await session.delete(trade)
+    await session.commit()
 
 
 @pytest.mark.asyncio
@@ -187,6 +190,7 @@ async def test_update_trade_status_already_exists(
     trade = await session.get(Trade, uid)
     assert trade.status == TradeStatus.APPROVED
     await session.delete(trade)
+    await session.commit()
 
 
 @pytest.mark.asyncio
@@ -204,7 +208,7 @@ async def test_update_trade_status_not_exists(
 
 
 @pytest.mark.asyncio
-async def test_get_unapproved_trades(
+async def test_get_uncomplete_trades(
     client,
     session
 ):
@@ -222,7 +226,7 @@ async def test_get_unapproved_trades(
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
-        response = await ac.get('/trades/unapproved/')
+        response = await ac.get('/trades/uncomplete/')
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -233,7 +237,7 @@ async def test_get_unapproved_trades(
 
 
 @pytest.mark.asyncio
-async def test_get_unapproved_trades_approved(
+async def test_get_uncomplete_trades_approved(
     client,
     session
 ):
@@ -252,7 +256,7 @@ async def test_get_unapproved_trades_approved(
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
-        response = await ac.get('/trades/unapproved/')
+        response = await ac.get('/trades/uncomplete/')
     assert len(response.json()) == 1
 
     async with AsyncClient(
@@ -267,7 +271,86 @@ async def test_get_unapproved_trades_approved(
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
-        response = await ac.get('/trades/unapproved/')
+        response = await ac.get('/trades/uncomplete/')
     assert len(response.json()) == 0
 
     await session.delete(trade)
+    await session.commit()
+
+
+def create_report(data: dict, report_params: ReportParams):
+    report = {}
+    for t, d in data:
+        if d[3] != TradeStatus.APPROVED:
+            continue
+        if report_params.date_from > d[4]:
+            continue
+        if report_params.date_to < d[4]:
+            continue
+        report_data = report.get(
+            d[0].id,
+            {'added': Decimal(0), 'removed': Decimal(0), 'count': 0}
+        )
+        report_data['count'] += 1
+        report_data['added'] += t.amount_original
+        report[d[0].id] = report_data
+
+        report_data = report.get(
+            d[1].id,
+            {'added': Decimal(0), 'removed': Decimal(0), 'count': 0}
+        )
+        report_data['count'] += 1
+        report_data['removed'] += t.amount
+        report[d[1].id] = report_data
+    res = []
+    for cur_id, value in report.items():
+        if report_params.cur_id and cur_id != report_params.cur_id:
+            continue
+        res.append(Report(
+            cur_id=cur_id,
+            sum_added=value['added'].quantize(Decimal('0.00'), rounding=ROUND_DOWN),
+            sum_removed=value['removed'].quantize(Decimal('0.00'), rounding=ROUND_DOWN),
+            count=value['count']
+        ).model_dump(mode='json'))
+    res = sorted(res, key=lambda x: x['cur_id'])
+    return res
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("date_from, date_to, cur_id", [
+    (date(2026, 9, 2), date(2026, 9, 7), None),
+    (date(2026, 9, 1), date(2026, 9, 7), 11),
+    (date(2026, 9, 4), date(2026, 9, 4), None),
+    (date(2026, 8, 2), date(2026, 10, 1), None),
+])
+async def test_get_report(
+    date_from, date_to, cur_id,
+    client,
+    trades_report,
+    session,
+    test_currencies
+):
+    report_params = ReportParams(
+        date_from=date_from,
+        date_to=date_to,
+        cur_id=cur_id
+    )
+    params = {
+        k: v for k, v in
+        report_params.model_dump(mode='json').items()
+        if v
+    }
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url='http://test'
+    ) as ac:
+        response = await ac.get('/trades/', params=params)
+    assert response.status_code == 200
+
+    expected_report = create_report(trades_report, report_params)
+    assert response.json() == expected_report
+
+    for tr in trades_report:
+        await session.delete(tr[0])
+    for c in test_currencies:
+        await session.delete(c)
+    await session.commit()

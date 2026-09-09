@@ -16,8 +16,8 @@ class CurrencyService:
         await self._repo.upsert(currency)
 
     async def add_byn(self) -> None:
-        """Добавляет белорусский рубль"""
-        logger.info('Добавление бел. рубля в хранилище')
+        """Добавить белорусский рубль"""
+        logger.info('Добавление бел. рубля')
         byn = Currency(
             abbreviation='BYN',
             name='Беллоруский рубль',
@@ -34,10 +34,11 @@ class CurrencyService:
         uid: int | None = None,
         abbreviation: str | None = None
     ) -> Currency | None:
-        """Возвращает Currency по id"""
-        if uid:
-            return await self._repo.get_by(uid=uid)
-        elif abbreviation:
-            return await self._repo.get_by(abbreviation=abbreviation)
+        """Возвращает Currency по id/abbreviation"""
+        if not (uid or abbreviation):
+            return
+        return await self._repo.get_by(uid=uid, abbreviation=abbreviation)
 
-
+    async def get_all(self) -> list[Currency]:
+        """Получить все курсы валют"""
+        return await self._repo.get_all()

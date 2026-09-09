@@ -1,10 +1,8 @@
 import uuid
-from datetime import datetime
+from datetime import date
 from decimal import Decimal
 from enum import Enum
-from typing import Self
 
-from pydantic import BaseModel, field_validator, model_validator
 from sqlmodel import Field, Relationship, SQLModel, func
 
 from features.currency.models import Currency, CurrencyPublic
@@ -15,27 +13,6 @@ class TradeStatus(str, Enum):
     REJECTED = 'rejected'
 
 
-class TradeCreate(BaseModel):
-    """Схема для создания обмена"""
-    amount: Decimal
-    from_cur_id: int
-    to_cur_id: int
-
-    @field_validator('amount')
-    @classmethod
-    def validate_amount(cls, v: Decimal) -> Decimal:
-        if v <= 0:
-            raise ValueError('Сумма должна быть больше 0')
-        return v
-
-    @model_validator(mode='after')
-    def validate_cur_ids(self) -> Self:
-        """Проверяет id валют на совпадение"""
-        if self.from_cur_id == self.to_cur_id:
-            raise ValueError('id валют должны быть разными')
-        return self
-
-
 class TradeBase(SQLModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid7, primary_key=True)
 
@@ -44,13 +21,13 @@ class Trade(TradeBase, table=True):
     """Обмен валюты"""
     __tablename__ = 'trades'
 
-    amount_original: Decimal
-    amount: Decimal
-    rate: Decimal = Field(max_digits=6, decimal_places=4)
-    updated_at: datetime = Field(
+    amount_original: Decimal = Field(decimal_places=2)
+    amount: Decimal = Field(decimal_places=2)
+    rate: Decimal = Field(max_digits=12, decimal_places=4)
+    updated_at: date = Field(
         sa_column_kwargs={
-            'server_default': func.now(),
-            'onupdate': func.now(),
+            'server_default': func.current_date(),
+            'onupdate': func.current_date(),
         }
     )
     status: TradeStatus | None = None
