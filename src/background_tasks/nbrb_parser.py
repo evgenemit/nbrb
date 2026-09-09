@@ -52,6 +52,7 @@ async def update_currencies(
         service = await get_currency_service(repo)
         for currency in currencies:
             await save_curriency(currency, service)
+        await session.commit()
     logger.info(f'Задача завершена ({periodicity=})')
 
 

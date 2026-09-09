@@ -1,4 +1,18 @@
 services:
+  api:
+    build: .
+    container_name: fastapi
+    command: sh -c "alembic upgrade head && fastapi run src/api/main.py --port 80"
+    ports:
+      - "80:80"
+    restart: always
+    environment:
+      - DB_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@db:${DB_PORT}/${DB_NAME}
+      - API_URL=${API_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
     image: postgres:18
     container_name: postgres-dev
@@ -10,6 +24,11 @@ services:
       - "${DB_PORT}:5432"
     volumes:
       - pg_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME} --quiet"]
+      interval: 3s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pg_data:
