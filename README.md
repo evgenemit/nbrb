@@ -31,10 +31,13 @@ DB_NAME=your_name
 DB_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
 
 API_URL=https://api.nbrb.by/exrates/rates
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
 ```
-5. Установить PostgreSQL
+5. Установить PostgreSQL и Redis
 ```bash
-sudo apt install postgresql postgresql-contrib
+sudo apt install postgresql postgresql-contrib redis-server
 ```
 6. Создать базу данных
 ```bash
@@ -76,12 +79,11 @@ touch .env
 ```bash
 DB_USER=your_user
 DB_PASSWORD=your_password
-DB_HOST=localhost
-DB_PORT=5432
 DB_NAME=your_name
 DB_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
 
 API_URL=https://api.nbrb.by/exrates/rates
+
 ``` 
 3. Запустить приложение
 ```bash
