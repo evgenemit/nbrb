@@ -1,6 +1,7 @@
 import logging
 from decimal import Decimal
 
+from core.database import get_redis_cache
 from features.currency.models import Currency
 from features.currency.repo import CurrencyRepository
 
@@ -37,7 +38,23 @@ class CurrencyService:
         """Возвращает Currency по id/abbreviation"""
         if not (uid or abbreviation):
             return
-        return await self._repo.get_by(uid=uid, abbreviation=abbreviation)
+        async with get_redis_cache(eviction_group='currencies') as cache:
+            if uid:
+                cached = await cache.get(
+                    f'currency:{uid}', eviction_group='currencies'
+                )
+                if cached is not None:
+                    return Currency.model_validate(cached)
+            result = await self._repo.get_by(
+                uid=uid, abbreviation=abbreviation
+            )
+            if uid and result:
+                await cache.set(
+                    f'currency:{uid}',
+                    result.model_dump(mode='json'),
+                    eviction_group='currencies'
+                )
+            return result
 
     async def get_all(self) -> list[Currency]:
         """Получить все курсы валют"""

@@ -1,3 +1,8 @@
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
+from redis.asyncio import Redis
+from redis_fastapi import CacheBackend
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -17,3 +22,14 @@ async def get_session():
         except:
             await session.rollback()
             raise
+
+
+@asynccontextmanager
+async def get_redis_cache(eviction_group: str) -> AsyncGenerator[CacheBackend]:
+    async with Redis(
+        host=settings.REDIS_HOST,
+        port=settings.REDIS_PORT
+    ) as r:
+        cache = CacheBackend(r, eviction_group=eviction_group)
+        yield cache
+

@@ -1,18 +1,23 @@
 from datetime import date
 from decimal import ROUND_DOWN, Decimal
 from uuid import UUID
+from contextlib import asynccontextmanager
 
 import pytest
 import pytest_asyncio
+from asgi_lifespan import LifespanManager
 from conftest import CUR1, CUR2
 from httpx import ASGITransport, AsyncClient
 from sqlmodel import delete, select
+from redis.asyncio import Redis
+from redis_fastapi import CacheBackend, redis_lifespan
 
 from api.main import app
 from core.database import get_session
 from features.currency.models import CurrencyPublic
 from features.trade.models import Trade, TradePublic, TradeStatus
 from features.trade.schemas import Report, ReportParams, TradeCreate
+from core.config import settings
 
 
 @pytest_asyncio.fixture
@@ -27,14 +32,20 @@ async def client(async_session):
                 await session.rollback()
                 raise
 
+    @asynccontextmanager
+    async def test_lifespan(app):
+        async with redis_lifespan(app):
+            yield
+
     app.dependency_overrides[get_session] = override_get_session
+    app.router.lifespan_context = test_lifespan
     yield
     app.dependency_overrides = {}
 
 
 @pytest.mark.asyncio
 async def test_get_currencies(client):
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.get('/currencies/')
@@ -63,6 +74,29 @@ async def test_get_currencies(client):
 
 
 @pytest.mark.asyncio
+async def test_get_currencies_without_cache(client):
+    async with Redis(
+        host=settings.REDIS_HOST, port=settings.REDIS_PORT
+    ) as r:
+        cache = CacheBackend(r, eviction_group='currencies')
+        await cache.delete('currency:all')
+    async with LifespanManager(app), AsyncClient(
+        transport=ASGITransport(app=app), base_url='http://test'
+    ) as ac:
+        response = await ac.get('/currencies/')
+    assert response.status_code == 200
+    first = response.json()
+    async with LifespanManager(app), AsyncClient(
+        transport=ASGITransport(app=app), base_url='http://test'
+    ) as ac:
+        response = await ac.get('/currencies/')
+    assert response.status_code == 200
+    second = response.json()
+
+    assert first == second
+
+
+@pytest.mark.asyncio
 async def test_create_trade_success(
     client,
     session
@@ -72,7 +106,7 @@ async def test_create_trade_success(
         from_cur_id=1,
         to_cur_id=2
     )
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.post('/trades/', json=test_data.model_dump(mode='json'))
@@ -104,7 +138,7 @@ async def test_create_trade_404(
         from_cur_id=3,
         to_cur_id=2
     )
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.post('/trades/', json=test_data.model_dump(mode='json'))
@@ -115,7 +149,7 @@ async def test_create_trade_404(
 async def test_create_trade_val(
     client
 ):
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.post('/trades/', json={
@@ -134,7 +168,7 @@ async def test_update_trade_status(
         from_cur_id=1,
         to_cur_id=2
     )
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.post('/trades/', json=test_data.model_dump(mode='json'))
@@ -142,7 +176,7 @@ async def test_update_trade_status(
     trade = await session.get(Trade, uid)
     assert trade.status is None
 
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.patch(
@@ -166,12 +200,12 @@ async def test_update_trade_status_already_exists(
         from_cur_id=1,
         to_cur_id=2
     )
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.post('/trades/', json=test_data.model_dump(mode='json'))
     uid = UUID(response.json().get('id'))
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.patch(
@@ -179,7 +213,7 @@ async def test_update_trade_status_already_exists(
             json={'id': str(uid), 'status': TradeStatus.APPROVED}
         )
 
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.patch(
@@ -197,7 +231,7 @@ async def test_update_trade_status_already_exists(
 async def test_update_trade_status_not_exists(
     client,
 ):
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.patch(
@@ -217,13 +251,13 @@ async def test_get_uncomplete_trades(
         from_cur_id=1,
         to_cur_id=2
     )
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.post('/trades/', json=test_data.model_dump(mode='json'))
     uid = response.json().get('id')
 
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.get('/trades/uncomplete/')
@@ -246,20 +280,20 @@ async def test_get_uncomplete_trades_approved(
         from_cur_id=1,
         to_cur_id=2
     )
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.post('/trades/', json=test_data.model_dump(mode='json'))
     uid = UUID(response.json().get('id'))
     trade = await session.get(Trade, uid)
 
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.get('/trades/uncomplete/')
     assert len(response.json()) == 1
 
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.patch(
@@ -268,7 +302,7 @@ async def test_get_uncomplete_trades_approved(
         )
     assert response.status_code == 200
 
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.get('/trades/uncomplete/')
@@ -340,7 +374,7 @@ async def test_get_report(
         report_params.model_dump(mode='json').items()
         if v
     }
-    async with AsyncClient(
+    async with LifespanManager(app), AsyncClient(
         transport=ASGITransport(app=app), base_url='http://test'
     ) as ac:
         response = await ac.get('/trades/', params=params)

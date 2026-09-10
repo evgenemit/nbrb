@@ -2,6 +2,8 @@ import logging
 from json.decoder import JSONDecodeError
 
 import httpx
+from redis_fastapi import CacheBackend
+from redis.asyncio import Redis
 
 from api.dependencies import get_currency_repo, get_currency_service
 from core.config import settings
@@ -37,6 +39,26 @@ async def save_curriency(
     await service.upsert(currency)
 
 
+async def save_curriency_redis(
+    currency: Currency,
+    r: Redis
+) -> None:
+    """Сохранить полученные данные о курсе валюты в Redis"""
+    cache = CacheBackend(r, eviction_group='currencies')
+    await cache.set(
+        f'currency:{currency.id}',
+        currency.model_dump(mode='json'),
+        ttl=60*60,
+        eviction_group='currencies'
+    )
+
+
+async def clear_currencies_all_redis(r: Redis) -> None:
+    """Удаляет currencies:all в Redis"""
+    cache = CacheBackend(r, eviction_group='currencies')
+    await cache.delete('currency:all', eviction_group='currencies')
+
+
 async def update_currencies(
     periodicity: int,
     session_maker = session_maker
@@ -47,12 +69,18 @@ async def update_currencies(
     if currencies is None:
         logger.info(f'Задача завершена c ошибкой ({periodicity=})')
         return
-    async with session_maker() as session:
-        repo = await get_currency_repo(session)
-        service = await get_currency_service(repo)
-        for currency in currencies:
-            await save_curriency(currency, service)
-        await session.commit()
+    async with Redis(
+        host=settings.REDIS_HOST,
+        port=settings.REDIS_PORT
+    ) as r:
+        async with session_maker() as session:
+            repo = await get_currency_repo(session)
+            service = await get_currency_service(repo)
+            for currency in currencies:
+                await save_curriency(currency, service)
+                await save_curriency_redis(currency, r)
+            await session.commit()
+        await clear_currencies_all_redis(r)
     logger.info(f'Задача завершена ({periodicity=})')
 
 

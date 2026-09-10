@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from redis_fastapi import CacheBackendDep
 
 from api.dependencies import get_currency_service, get_trade_service
 from features.currency.models import CurrencyPublic
@@ -15,9 +16,23 @@ router = APIRouter()
 @router.get('/currencies/')
 async def get_currencies(
     currency_service: Annotated[CurrencyService, Depends(get_currency_service)],
+    cache: CacheBackendDep
 ) -> list[CurrencyPublic]:
     """Получить все доступные для обмена валюты"""
-    return await currency_service.get_all()
+    cached_currencies = await cache.get(
+        'currency:all',
+        eviction_group='currencies'
+    )
+    if cached_currencies is not None:
+        return cached_currencies
+    result = await currency_service.get_all()
+    await cache.set(
+        'currency:all',
+        [c.model_dump(mode='json') for c in result],
+        ttl=60*60,
+        eviction_group='currencies'
+    )
+    return result
 
 
 @router.post('/trades/')

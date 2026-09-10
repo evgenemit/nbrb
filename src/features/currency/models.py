@@ -21,6 +21,10 @@ class Currency(CurrencyBase, table=True):
         max_digits=12, decimal_places=4, validation_alias='Cur_OfficialRate'
     )
 
+    model_config = {
+        'populate_by_name': True
+    }
+
 
 class CurrencyPublic(CurrencyBase):
     id: int
